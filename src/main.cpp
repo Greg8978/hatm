@@ -7,9 +7,10 @@
 
 #include <ros/ros.h>
 #include <queue>
-#include "htn_verbalizer/Empty.h"
-#include "htn_verbalizer/NodeParam.h"
-#include "htn_verbalizer/Name.h"
+#include "htn_verbalizer2/Empty.h"
+#include "htn_verbalizer2/NodeParam.h"
+#include "htn_verbalizer2/Name.h"
+#include "htn_verbalizer2/Names.h"
 
 #include "toaster_msgs/GetFactValue.h"
 #include "toaster_msgs/AddFact.h"
@@ -24,12 +25,14 @@ ros::ServiceClient* getKnowledgeClient_;
 ros::ServiceClient* setKnowledgeClient_;
 unsigned int nbPartners_ = 0; // This is use so that robot will say "you" if 1 partner and tell name if more than 1
 
+//Agents in plan
+std::vector<std::string> agents_;
 
 //To ask robot to repeat:
 std::string lastSentence_ = "";
 
 // Policy for robot to explain his task or not
-bool policyTeach = false;
+bool policyTeach_ = false;
 
 void verbalize(std::string sentence, unsigned int time) {
     soundClient_->say(sentence);
@@ -162,7 +165,7 @@ std::string getKnowledge(unsigned int id) {
 
     if (agents.size() == 1) {
         if (agents[0] == "PR2_ROBOT") {
-            return "expert";
+            agents = agents_;
         }
     } else {
         std::vector<std::string>::iterator it = std::find(agents.begin(), agents.end(), "PR2_ROBOT");
@@ -206,6 +209,12 @@ bool updateKnowledge(std::string level, unsigned int nodeId) {
     std::vector<std::string> agents = node->getAgents();
     bool success = true;
     std::string params = planToKnowledgeParam(nodeId);
+    
+    if (agents.size() == 1) {
+        if (agents[0] == "PR2_ROBOT") {
+            agents = agents_;
+        }
+    }
 
     for (std::vector<std::string>::iterator it = agents.begin(); it != agents.end(); ++it) {
 
@@ -304,38 +313,34 @@ std::vector<unsigned int> processNodes(std::vector<unsigned int> currentNodes, u
  * @param daddy
  */
 void verbalizeTasksRepartition(std::vector<unsigned int> currentNodes, unsigned int daddy) {
-    //TODO: Implement this function!
+    //Introduction:
+
     if (!currentNodes.empty()) {
+        std::stringstream ss;
+        ss << "I will tell you the steps to " << nodeToText(daddy);
+        verbalize(ss.str(), 5);
 
         for (std::vector<unsigned int>::iterator it = currentNodes.begin(); it != currentNodes.end(); ++it) {
-            std::stringstream ss;
+            ss.str("");
             //printf("verbalizing nodes, current %d\n", (*it));
 
             if (it == currentNodes.begin()) {
-                ss << "To " << nodeToText(daddy) << ", " <<
-                        getSubject(plan_->getNode((*it))->getAgents()) << "will first "
+                ss << getSubject(plan_->getNode((*it))->getAgents()) << "will first "
                         << nodeToText((*it));
 
-                printf("[saying] %s\n", ss.str().c_str());
-                soundClient_->say(ss.str());
-                sleep(6);
+                verbalize(ss.str(), 3);
 
             } else if (((*it) != currentNodes.back()) || ((*it) == currentNodes[1])) {
                 ss << "Then " << getSubject(plan_->getNode((*it))->getAgents()) << "will "
                         << nodeToText((*it));
 
-                printf("[saying] %s\n", ss.str().c_str());
-                soundClient_->say(ss.str());
-                sleep(3);
+                verbalize(ss.str(), 3);
 
             } else {
                 ss << "Finally " << getSubject(plan_->getNode((*it))->getAgents()) << "will "
                         << nodeToText((*it));
 
-
-                printf("[saying] %s\n", ss.str().c_str());
-                soundClient_->say(ss.str());
-                sleep(3);
+                verbalize(ss.str(), 3);
 
             }
         }
@@ -345,31 +350,47 @@ void verbalizeTasksRepartition(std::vector<unsigned int> currentNodes, unsigned 
 }
 
 bool executeTree(std::vector<unsigned int> currentNodes, unsigned int daddy) {
+    std::stringstream ss;
+    std::vector<std::string> agents = plan_->getNode(daddy)->getAgents();
+    ss << "Let's start to " << nodeToText(daddy);
+    verbalize(ss.str(), 5);
+    bool tellWhat = true;
+
+
+    if(getKnowledge(daddy) != "new" || !policyTeach_)
+        ROS_INFO("knowledge %s   policy %d", getKnowledge(daddy).c_str(), policyTeach_);
+    
+    // If only robot is concerned + no need explain
+    if ((plan_->getNode(daddy)->getAgents().size() < 2 && agents[0] == "PR2_ROBOT")
+            && (getKnowledge(daddy) != "new" || !policyTeach_))
+        tellWhat = false;
+
     for (std::vector<unsigned int>::iterator it = currentNodes.begin(); it != currentNodes.end(); ++it) {
-        std::stringstream ss;
+        ss.str("");
         //printf("verbalizing nodes, current %d\n", (*it));
 
-        if (it == currentNodes.begin()) {
+        if (tellWhat) {
+            if (it == currentNodes.begin()) {
 
-            ss << "To " << nodeToText(daddy) << ", " <<
-                    getSubject(plan_->getNode((*it))->getAgents()) << " first "
-                    << nodeToText((*it));
+                ss << getSubject(plan_->getNode((*it))->getAgents()) << " first "
+                        << nodeToText((*it));
 
-        } else
-            ss << "Good, now" << getSubject(plan_->getNode((*it))->getAgents()) << nodeToText((*it));
+            } else
+                ss << "Good, now " << getSubject(plan_->getNode((*it))->getAgents()) << nodeToText((*it));
+
+            verbalize(ss.str(), 3);
+        }
 
 
-        verbalize(ss.str(), 3);
-
-        std::vector<std::string> agents = plan_->getNode((*it))->getAgents();
-        std::vector<unsigned int> children = plan_->getNode((*it))->getSubNodes();
+        agents = plan_->getNode((*it))->getAgents();
+        std::vector<unsigned int> children = processNodes(plan_->getNode((*it))->getSubNodes(), (*it));
 
 
         ///////////////// No human involved case //////////////
         if (agents.size() < 2 && agents[0] == "PR2_ROBOT") { // only ROBOT case
             // if not leaf, and we need to teach
             if (!children.empty() && getKnowledge((*it)) == "new"
-                    && policyTeach) {
+                    && policyTeach_) {
                 executeTree(children, (*it));
                 updateKnowledge("beginner", (*it));
 
@@ -391,6 +412,8 @@ bool executeTree(std::vector<unsigned int> currentNodes, unsigned int daddy) {
                 } else {
                     //TODO SUPERVISION monitorAtomic((*it))
                 }
+                // This should be done only to new user
+                // TODO: a way to tell increment all users / only new users
                 updateKnowledge("beginner", (*it));
 
 
@@ -454,6 +477,7 @@ bool executePlan(unsigned int n) {
             vector<unsigned int> nodesRemaining = processNodes(plan_->getNode(n)->getSubNodes(), n);
             vector<unsigned int> currentNodes;
 
+            printf("1 nodes Remaining size? %d\n", (int) nodesRemaining.size());
             while (!nodesRemaining.empty()) {
                 // Human can remember 7 info: 1 goal + 3 task + 3 agent responsible for each task
                 // SO we limit the plan presentation to 3 nodes
@@ -466,11 +490,18 @@ bool executePlan(unsigned int n) {
                     currentNodes.assign(start, cut);
                     cut++;
                     nodesRemaining.assign(cut, end);
+
+                    printf("2 nodes Remaining size? %d\n", nodesRemaining.size());
+                } else {
+                    currentNodes = nodesRemaining;
+                    nodesRemaining.clear();
                 }
                 verbalizeTasksRepartition(currentNodes, n);
+                //Execute tree
+                executeTree(currentNodes, n);
+
+                printf("3 nodes Remaining size? %d\n", nodesRemaining.size());
             }
-            //Execute tree
-            executeTree(currentNodes, n);
         }
         printf("tree done\n");
         return true;
@@ -483,8 +514,8 @@ bool executePlan(unsigned int n) {
  * @param res
  * @return 
  */
-bool initPlan(htn_verbalizer::Empty::Request &req,
-        htn_verbalizer::Empty::Response & res) {
+bool initPlan(htn_verbalizer2::Empty::Request &req,
+        htn_verbalizer2::Empty::Response & res) {
 
     ROS_INFO("[htn_verbalizer][initPlan] Waiting for a plan");
 
@@ -504,7 +535,7 @@ bool initPlan(htn_verbalizer::Empty::Request &req,
     removeFormatting(answer);
     if (testInputValidity(answer)) {
         plan_ = new hatpPlan(answer);
-
+        agents_ = plan_->getTree()->getRootNode()->getAgents();
     } else
         ROS_INFO("[htn_verbalizer][WARNING] unvalid plan received!");
 
@@ -517,8 +548,8 @@ bool initPlan(htn_verbalizer::Empty::Request &req,
  * @param res
  * @return 
  */
-bool initSpeech(htn_verbalizer::Empty::Request &req,
-        htn_verbalizer::Empty::Response & res) {
+bool initSpeech(htn_verbalizer2::Empty::Request &req,
+        htn_verbalizer2::Empty::Response & res) {
 
     if (plan_ != NULL) {
         std::vector<std::string> agents;
@@ -552,8 +583,8 @@ bool initSpeech(htn_verbalizer::Empty::Request &req,
  * @param res
  * @return 
  */
-bool rePlan(htn_verbalizer::NodeParam::Request &req,
-        htn_verbalizer::NodeParam::Response & res) {
+bool rePlan(htn_verbalizer2::NodeParam::Request &req,
+        htn_verbalizer2::NodeParam::Response & res) {
 
     ROS_INFO("[htn_verbalizer][rePlan] received a replan request!");
     //We start by informing about the error:
@@ -593,7 +624,7 @@ bool rePlan(htn_verbalizer::NodeParam::Request &req,
             delete plan_;
             plan_ = new hatpPlan(answer);
 
-            ss.flush();
+            ss.str("");
 
             ss << " I found a way to " << planNamesToSpeech(plan_->getTree()->getRootNode()->getName())
                     << " from the current situation ";
@@ -620,8 +651,8 @@ bool rePlan(htn_verbalizer::NodeParam::Request &req,
  * @param res
  * @return 
  */
-bool initExecution(htn_verbalizer::NodeParam::Request &req,
-        htn_verbalizer::NodeParam::Response & res) {
+bool initExecution(htn_verbalizer2::NodeParam::Request &req,
+        htn_verbalizer2::NodeParam::Response & res) {
 
     ROS_INFO("[htn_verbalizer][initExec] received a initExec request!");
     if (plan_ == NULL) {
@@ -646,8 +677,8 @@ bool initExecution(htn_verbalizer::NodeParam::Request &req,
  * @param res
  * @return 
  */
-bool endExecution(htn_verbalizer::NodeParam::Request &req,
-        htn_verbalizer::NodeParam::Response & res) {
+bool endExecution(htn_verbalizer2::NodeParam::Request &req,
+        htn_verbalizer2::NodeParam::Response & res) {
     std::stringstream ss;
 
     ROS_INFO("[htn_verbalizer][initExec] received a initExec request!");
@@ -673,8 +704,8 @@ bool endExecution(htn_verbalizer::NodeParam::Request &req,
  * @param res
  * @return 
  */
-bool executeCurrentPlan(htn_verbalizer::Empty::Request &req,
-        htn_verbalizer::Empty::Response & res) {
+bool executeCurrentPlan(htn_verbalizer2::Empty::Request &req,
+        htn_verbalizer2::Empty::Response & res) {
 
     if (plan_ == NULL)
         ROS_INFO("[htn_verbalizer][verbalizeCurrentPlan][WARNING] no plan, use init_plan request!");
@@ -690,13 +721,35 @@ bool executeCurrentPlan(htn_verbalizer::Empty::Request &req,
  * @param res
  * @return 
  */
-bool setHatpClient(htn_verbalizer::Name::Request &req,
-        htn_verbalizer::Name::Response & res) {
+bool setHatpClient(htn_verbalizer2::Name::Request &req,
+        htn_verbalizer2::Name::Response & res) {
 
     if (req.name == "")
         ROS_INFO("[htn_verbalizer][setHatpPlan][WARNING] no client name given!");
     else {
         clientName_ = req.name;
+    }
+
+}
+
+bool changePolicyTeach(htn_verbalizer2::Empty::Request &req,
+        htn_verbalizer2::Empty::Response & res) {
+
+    if (policyTeach_)
+        policyTeach_ = false;
+    else
+        policyTeach_ = true;
+
+    ROS_INFO("[htn_verbalizer][policyteach] policyTeach_ set to %d", policyTeach_);
+}
+
+bool setAgentsPresent(htn_verbalizer2::Names::Request &req,
+        htn_verbalizer2::Names::Response & res) {
+
+    if (req.names.empty())
+        ROS_INFO("[htn_verbalizer][setHatpPlan][WARNING] no agent names given!");
+    else {
+        agents_ = req.names;
     }
 
 }
@@ -749,7 +802,13 @@ int main(int argc, char ** argv) {
     ros::ServiceServer servicesetHatp = node.advertiseService("htn_verbalizer/set_hatp_client", setHatpClient);
     ROS_INFO("[Request] Ready to set hatp client.");
 
+    ros::ServiceServer servicePolicy = node.advertiseService("htn_verbalizer/switch_policy", changePolicyTeach);
+    ROS_INFO("[Request] Ready to set policy.");
 
+    ros::ServiceServer serviceAg = node.advertiseService("htn_verbalizer/set_present_agents", setAgentsPresent);
+    ROS_INFO("[Request] Ready to set present agents.");
+
+    
     // Set this in a ros service?
     ros::Rate loop_rate(30);
 

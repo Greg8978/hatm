@@ -65,6 +65,7 @@ find_package(Boost REQUIRED COMPONENTS regex system)
    Empty.srv
    NodeParam.srv
    Name.srv
+   Names.srv
  )
 
 ## Generate actions in the 'action' folder
