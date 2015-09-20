@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<list_nodes>
+
+	<object node="Handle"  			        speech1=" handle the "   		arg1="1"        />
+	<object node="Place"			  	speech1=" place the "    		arg1="1"  	speech2=" on the "      arg2="2"     />
+	<object node="Put"			  	speech1=" put the "    			arg1="1"  	speech2=" on the "      arg2="2"     />
+	<object node="PlaceOnStack"		 	speech1=" place the "  	 		arg1="1"  	speech2=" on the stack" />
+	<object node="Pick"  			        speech1=" pick the "     		arg1="1"  	speech2=""                    />
+	<object node="Apply"  			        speech1=""               		arg1="2"  	speech2=" the "         arg2="1"     />
+	<object node="ApplyOperation"		        speech1=" process the "  		arg1="1"  	speech2=""              arg2=""      />
+	<object node="HandleOperation" 		        speech1=""               		arg1="2"  	speech2=" the "         arg2="1"     />
+	<object node="ApplyFirstOperations"	        speech1=" apply operations on the" 	arg1="1"  	/>
+	<object node="Move" 		                speech1=" move the "               	arg1="0"  	speech2=" to the "         arg2="1"  />
+
+
+
+	
+</list_nodes>	
+

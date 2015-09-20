@@ -6,6 +6,7 @@
 
 
 #include <ros/ros.h>
+#include "ros/package.h"
 #include <queue>
 #include "htn_verbalizer2/Empty.h"
 #include "htn_verbalizer2/NodeParam.h"
@@ -16,6 +17,7 @@
 #include "toaster_msgs/AddFact.h"
 #include "toaster_msgs/Fact.h"
 
+#include <tinyxml.h>
 
 std::string clientName_ = "hatptester"; //Name should actually be the same as Michelangelo supervisor !!!
 msgClient hatpClient_;
@@ -25,11 +27,21 @@ ros::ServiceClient* getKnowledgeClient_;
 ros::ServiceClient* setKnowledgeClient_;
 unsigned int nbPartners_ = 0; // This is use so that robot will say "you" if 1 partner and tell name if more than 1
 
+// Tinyxml
+TiXmlDocument listNodes_;
+TiXmlDocument listNames_;
+TiXmlElement *nodes_;
+TiXmlElement *names_;
+
+
 //Agents in plan
 std::vector<std::string> agents_;
 
 //To ask robot to repeat:
 std::string lastSentence_ = "";
+
+// The user want the robot to repeat
+bool repeat_ = false;
 
 // Policy for robot to explain his task or not
 bool policyTeach_ = false;
@@ -51,6 +63,32 @@ std::string getParameterClass(std::string param) {
         return "Cubes";
     else
         return param;
+}
+
+bool askUnderstand() {
+    std::string mystr;
+    verbalize("Did you understand?", 2);
+    getline(std::cin, mystr);
+    if (mystr == "yes")
+        return true;
+    else if (mystr == "no")
+        return false;
+    else
+        return askUnderstand();
+    return false;
+}
+
+bool askExplanation() {
+    std::string mystr;
+    verbalize("Do you need explanation for this task", 3);
+    getline(std::cin, mystr);
+    if (mystr == "yes")
+        return true;
+    else if (mystr == "no")
+        return false;
+    else
+        return askExplanation();
+    return false;
 }
 
 /**
@@ -86,18 +124,17 @@ std::string planToKnowledgeParam(unsigned int id) {
  */
 std::string planNamesToSpeech(std::string plan) {
 
-    if (plan == "Blue_Cube")
-        return "blue cube ";
-    else if (plan == "Red_Cube")
-        return "red cube ";
-    else if (plan == "Green_Cube")
-        return "green cube ";
-    else if (plan == "Stickers")
-        return "put stickers on ";
-    else if (plan == "ApplyOperation")
-        return "process ";
-    else
-        return plan;
+    TiXmlElement *current_name = names_;
+
+    while (current_name) //for each element of the xml file
+    {
+        if (current_name->Attribute("name") == plan) { //if it is the good one
+            return current_name->Attribute("speech");
+        } else
+            current_name = current_name->NextSiblingElement();
+    }
+
+    return plan;
 }
 
 /**
@@ -108,24 +145,28 @@ std::string planNamesToSpeech(std::string plan) {
 std::string nodeToText(unsigned int id) {
     std::stringstream ss;
 
-    if (plan_->getNode(id)->getName() == "Handle")
-        ss << "handle the " << planNamesToSpeech(plan_->getNode(id)->getParameters()[1]);
-    else if (plan_->getNode(id)->getName() == "Place")
-        ss << "place the " << planNamesToSpeech(plan_->getNode(id)->getParameters()[1]) << " on the " << planNamesToSpeech(plan_->getNode(id)->getParameters()[2]);
-    else if (plan_->getNode(id)->getName() == "PlaceOnStack")
-        ss << "place the " << planNamesToSpeech(plan_->getNode(id)->getParameters()[1]) << " on the stack ";
-    else if (plan_->getNode(id)->getName() == "Pick")
-        ss << "pick the " << planNamesToSpeech(plan_->getNode(id)->getParameters()[1]);
-    else if (plan_->getNode(id)->getName() == "Apply")
-        ss << planNamesToSpeech(plan_->getNode(id)->getParameters()[2]) << " the " << planNamesToSpeech(plan_->getNode(id)->getParameters()[1]);
-    else if (plan_->getNode(id)->getName() == "ApplyOperation")
-        ss << planNamesToSpeech(plan_->getNode(id)->getName()) << " the " << planNamesToSpeech(plan_->getNode(id)->getParameters()[1]);
-    else if (plan_->getNode(id)->getName() == "HandleOperation")
-        ss << planNamesToSpeech(plan_->getNode(id)->getParameters()[2]) << " the " << planNamesToSpeech(plan_->getNode(id)->getParameters()[1]);
-    else if (plan_->getNode(id)->getName() == "ApplyFirstOperations")
-        ss << "Apply operations" << " on the " << planNamesToSpeech(plan_->getNode(id)->getParameters()[1]);
-    else
-        ss << planNamesToSpeech(plan_->getNode(id)->getName());
+    TiXmlElement *current_node = nodes_;
+
+    while (current_node) //for each element of the xml file
+    {
+        if (current_node->Attribute("node") == plan_->getNode(id)->getName()) { //if it is the good one
+            ss << current_node->Attribute("speech1");
+
+            if (current_node->Attribute("arg1"))
+                ss << planNamesToSpeech(plan_->getNode(id)->getParameters()[atoi(current_node->Attribute("arg1"))]);
+
+            ss << current_node->Attribute("speech2");
+
+            if (current_node->Attribute("arg2")) {
+                ss << planNamesToSpeech(plan_->getNode(id)->getParameters()[atoi(current_node->Attribute("arg2"))]);
+            }
+
+            return ss.str();
+        } else
+            current_node = current_node->NextSiblingElement();
+    }
+
+    ss << planNamesToSpeech(plan_->getNode(id)->getName());
     return ss.str();
 }
 
@@ -209,7 +250,7 @@ bool updateKnowledge(std::string level, unsigned int nodeId) {
     std::vector<std::string> agents = node->getAgents();
     bool success = true;
     std::string params = planToKnowledgeParam(nodeId);
-    
+
     if (agents.size() == 1) {
         if (agents[0] == "PR2_ROBOT") {
             agents = agents_;
@@ -354,22 +395,22 @@ bool executeTree(std::vector<unsigned int> currentNodes, unsigned int daddy) {
     std::vector<std::string> agents = plan_->getNode(daddy)->getAgents();
     ss << "Let's start to " << nodeToText(daddy);
     verbalize(ss.str(), 5);
-    bool tellWhat = true;
+    bool tellcurrent = true;
 
 
-    if(getKnowledge(daddy) != "new" || !policyTeach_)
+    if (getKnowledge(daddy) != "new" || !policyTeach_)
         ROS_INFO("knowledge %s   policy %d", getKnowledge(daddy).c_str(), policyTeach_);
-    
+
     // If only robot is concerned + no need explain
     if ((plan_->getNode(daddy)->getAgents().size() < 2 && agents[0] == "PR2_ROBOT")
             && (getKnowledge(daddy) != "new" || !policyTeach_))
-        tellWhat = false;
+        tellcurrent = false;
 
     for (std::vector<unsigned int>::iterator it = currentNodes.begin(); it != currentNodes.end(); ++it) {
         ss.str("");
         //printf("verbalizing nodes, current %d\n", (*it));
 
-        if (tellWhat) {
+        if (tellcurrent) {
             if (it == currentNodes.begin()) {
 
                 ss << getSubject(plan_->getNode((*it))->getAgents()) << " first "
@@ -378,7 +419,12 @@ bool executeTree(std::vector<unsigned int> currentNodes, unsigned int daddy) {
             } else
                 ss << "Good, now " << getSubject(plan_->getNode((*it))->getAgents()) << nodeToText((*it));
 
-            verbalize(ss.str(), 3);
+            bool understand = false;
+            while (!understand) {
+                verbalize(ss.str(), 3);
+                understand = askUnderstand();
+            }
+
         }
 
 
@@ -397,6 +443,7 @@ bool executeTree(std::vector<unsigned int> currentNodes, unsigned int daddy) {
                 // if leaf or no explain needed
             } else {
                 //TODO SUPERVISOR execute(current)
+                ROS_INFO("SUPERVISION execute(%s)", plan_->getNode((*it))->getName().c_str());
             }
 
             ////////////// Human involved case /////////////////////
@@ -410,6 +457,7 @@ bool executeTree(std::vector<unsigned int> currentNodes, unsigned int daddy) {
                 if (!children.empty()) {
                     executeTree(children, (*it));
                 } else {
+                    ROS_INFO("SUPERVISION monitorAtomic(%s)", plan_->getNode((*it))->getName().c_str());
                     //TODO SUPERVISION monitorAtomic((*it))
                 }
                 // This should be done only to new user
@@ -419,10 +467,8 @@ bool executeTree(std::vector<unsigned int> currentNodes, unsigned int daddy) {
 
                 // BEGINNER user
             } else if (getKnowledge((*it)) == "beginner") {
-                verbalize("Do you need explanation for this task?", 3);
-                // TODO: get real answere
-                bool yes = true;
-                if (yes) {
+                bool explain = askExplanation();
+                if (explain) {
                     //We downgrade the knowledge
                     updateKnowledge("new", (*it));
                     //TODO explain((*it));
@@ -431,10 +477,12 @@ bool executeTree(std::vector<unsigned int> currentNodes, unsigned int daddy) {
                         executeTree(children, (*it));
                     } else {
                         //TODO SUPERVISION monitorAtomic((*it))
+                        ROS_INFO("SUPERVISION monitorAtomic(%s)", plan_->getNode((*it))->getName().c_str());
                     }
                     updateKnowledge("beginner", (*it));
                 } else {
                     //TODO SUPERVISION monitorAtomic((*it))
+                    ROS_INFO("SUPERVISION monitorAtomic(%s)", plan_->getNode((*it))->getName().c_str());
                     updateKnowledge("intermediate", (*it));
                 }
 
@@ -442,17 +490,22 @@ bool executeTree(std::vector<unsigned int> currentNodes, unsigned int daddy) {
                 // INTERMEDIATE user
             } else if (getKnowledge((*it)) == "intermediate") {
                 //monitor((*it));
+                ROS_INFO("SUPERVISION monitor(%s)", plan_->getNode((*it))->getName().c_str());
                 updateKnowledge("expert", (*it));
 
 
                 // EXPERT user
             } else if (getKnowledge((*it)) == "expert") {
                 //monitor((*it));
+                ROS_INFO("SUPERVISION monitorAtomic(%s)", plan_->getNode((*it))->getName().c_str());
 
             }
 
         }
     }
+    // This should be just an update
+    updateKnowledge("beginner", daddy);
+
 }
 
 /**
@@ -496,7 +549,12 @@ bool executePlan(unsigned int n) {
                     currentNodes = nodesRemaining;
                     nodesRemaining.clear();
                 }
-                verbalizeTasksRepartition(currentNodes, n);
+
+                repeat_ = true;
+                while (repeat_) {
+                    verbalizeTasksRepartition(currentNodes, n);
+                    repeat_ = !askUnderstand();
+                }
                 //Execute tree
                 executeTree(currentNodes, n);
 
@@ -808,10 +866,41 @@ int main(int argc, char ** argv) {
     ros::ServiceServer serviceAg = node.advertiseService("htn_verbalizer/set_present_agents", setAgentsPresent);
     ROS_INFO("[Request] Ready to set present agents.");
 
-    
+
     // Set this in a ros service?
     ros::Rate loop_rate(30);
 
+    //open xml files
+
+    // nodes
+    std::stringstream pathNodes;
+    pathNodes << ros::package::getPath("htn_verbalizer2") << "/data/list_nodes.xml";
+    listNodes_ = TiXmlDocument(pathNodes.str());
+
+    if (!listNodes_.LoadFile()) {
+        ROS_WARN_ONCE("Error while loading xml file");
+        ROS_WARN_ONCE("error # %d", listNodes_.ErrorId());
+        ROS_WARN_ONCE("%s", listNodes_.ErrorDesc());
+    }
+
+    TiXmlHandle hdl(&listNodes_);
+    nodes_ = hdl.FirstChildElement().FirstChildElement().Element();
+
+
+
+    // names
+    std::stringstream pathNames;
+    pathNames << ros::package::getPath("htn_verbalizer2") << "/data/list_names.xml";
+    listNames_ = TiXmlDocument(pathNames.str());
+
+    if (!listNames_.LoadFile()) {
+        ROS_WARN_ONCE("Error while loading xml file");
+        ROS_WARN_ONCE("error # %d", listNames_.ErrorId());
+        ROS_WARN_ONCE("%s", listNames_.ErrorDesc());
+    }
+
+    TiXmlHandle hdlNames(&listNames_);
+    names_ = hdlNames.FirstChildElement().FirstChildElement().Element();
 
     while (node.ok()) {
         ros::spinOnce();

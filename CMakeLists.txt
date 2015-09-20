@@ -9,12 +9,16 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} $ENV{ROBOTPKG_BASE}/share/cmake/Modul
 find_package(catkin REQUIRED COMPONENTS
   roscpp
   rospy
+  roslib
   sound_play
   std_msgs
   genmsg
   toaster_msgs
+  cmake_modules
 )
 
+find_package(cmake_modules REQUIRED)
+find_package(TinyXML REQUIRED)
 find_package(msgconnector REQUIRED)
 find_package(libhatp REQUIRED)
 find_package(Boost REQUIRED COMPONENTS regex system)
@@ -92,10 +96,7 @@ find_package(Boost REQUIRED COMPONENTS regex system)
 ## CATKIN_DEPENDS: catkin_packages dependent projects also need
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
-#  INCLUDE_DIRS include
-#  LIBRARIES htn_verbalizer
-#  CATKIN_DEPENDS roscpp rospy sound_play std_msgs
-#  DEPENDS system_lib
+   CATKIN_DEPENDS roslib
 )
 
 ###########
@@ -109,6 +110,7 @@ include_directories(
   ${msgconnector_INCLUDE_DIRS}
   ${libhatp_INCLUDE_DIRS}
   ${catkin_INCLUDE_DIRS}
+  ${TinyXML_INCLUDE_DIRS}
 )
 
 ## Declare a cpp library
@@ -128,7 +130,8 @@ target_link_libraries(htn_verbalizer2
 ${catkin_LIBRARIES}
 ${msgconnector_LIBRARIES} 
 ${libhatp_LIBRARIES} 
-${Boost_REGEX_LIBRARIES}
+${Boost_REGEX_LIBRARIES} 
+${TinyXML_LIBRARIES}
 )
 
 #############

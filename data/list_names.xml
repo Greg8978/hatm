@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<list_names>
+
+	<object name="HERAKLES_HUMAN1"	        speech=" Greg " />
+	<object name="Red_Cube"	        	speech=" red cube " />
+	<object name="Green_Cube"	        speech=" green cube " />
+	<object name="Yellow_Cube"	        speech=" yellow cube " />
+	<object name="Black_Cube"	        speech=" black cube " />
+	<object name="Stickers_operation"       speech=" put stickers on " />
+	<object name="Kitchen_table"            speech=" kitchen table " />
+	<object name="Livingroom_table"         speech=" livingroom table " />
+
+
+</list_names>
