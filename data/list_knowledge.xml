@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<list_knowledge>
+	<object node="Handle"  			        arg1="1"		        />
+	<object node="Place"			  	global_knowledge="true"		/>
+	<object node="Put"			  	global_knowledge="true"		/>
+	<object node="PlaceOnStack"		 	global_knowledge="ẗrue"		/>
+	<object node="Pick"  			        global_knowledge="true"		/>
+	<object node="Apply"  			        global_knowledge="true"		/>
+	<object node="ApplyOperation"  			arg1="1"  			class1="true"		arg2="2"		class2="true"     />
+	<object node="ApplyFirstOperations"	        arg1="1"  		   	/>
+	<object node="Move" 		                global_knowledge="true"		/>
+	<object node="Travelto" 		        global_knowledge="true"		/>
+
+	
+</list_knowledge>	
+

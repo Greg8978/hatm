@@ -5,10 +5,12 @@
 	<object name="Red_Cube"	        	speech=" red cube " />
 	<object name="Green_Cube"	        speech=" green cube " />
 	<object name="Yellow_Cube"	        speech=" yellow cube " />
+	<object name="Blue_Cube"	        speech=" blue cube " />
 	<object name="Black_Cube"	        speech=" black cube " />
 	<object name="Stickers_operation"       speech=" put stickers on " />
 	<object name="Kitchen_table"            speech=" kitchen table " />
 	<object name="Livingroom_table"         speech=" livingroom table " />
+	<object name="Glue_Red"         	speech=" glue " />
 
 
 </list_names>

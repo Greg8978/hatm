@@ -30,6 +30,8 @@ unsigned int nbPartners_ = 0; // This is use so that robot will say "you" if 1 p
 // Tinyxml
 TiXmlDocument listNodes_;
 TiXmlDocument listNames_;
+TiXmlDocument listKnowledges_;
+TiXmlElement *knowledges_;
 TiXmlElement *nodes_;
 TiXmlElement *names_;
 
@@ -48,9 +50,9 @@ bool policyTeach_ = false;
 
 void verbalize(std::string sentence, unsigned int time) {
     soundClient_->say(sentence);
+    printf("[saying] %s\n", sentence.c_str());
     sleep(time);
     lastSentence_ = sentence;
-    printf("[saying] %s\n", sentence.c_str());
 }
 
 /**
@@ -59,8 +61,10 @@ void verbalize(std::string sentence, unsigned int time) {
  * @return 
  */
 std::string getParameterClass(std::string param) {
-    if ("Green_Cube" || "Blue_Cube" || "Red_Cube")
+    if (param == "Green_Cube" || param == "Blue_Cube" || param == "Red_Cube")
         return "Cubes";
+    else if (param == "Glue_Green" || param == "Glue_Red" || param == "Glue_Blue")
+        return "Glue";
     else
         return param;
 }
@@ -97,22 +101,40 @@ bool askExplanation() {
  * @return 
  */
 std::string planToKnowledgeParam(unsigned int id) {
-    std::stringstream ss;
-    ss << "";
-    // Some knowledge apply to class of objects, other on object itself
 
-    for (int i = 0; i < plan_->getNode(id)->getParameters().size(); ++i) {
-        if ((plan_->getNode(id)->getParameters()[i]) == "HERAKLES_HUMAN1")
-            continue;
-        if (plan_->getNode(id)->getName() == "PlaceOnStack" || plan_->getNode(id)->getName() == "Pick") {
-            if (getParameterClass(plan_->getNode(id)->getParameters()[i]) == "Cubes") {
-                ss << getParameterClass(plan_->getNode(id)->getParameters()[i]) << "-";
-            } else {
-                ss << plan_->getNode(id)->getParameters()[i] << "-";
+    TiXmlElement *current_knowledge = knowledges_;
+    std::stringstream ss;
+    while (current_knowledge) //for each element of the xml file
+    {
+        if (current_knowledge->Attribute("node") == plan_->getNode(id)->getName()) { //if it is the good one
+            if (current_knowledge->Attribute("global_knowledge"))
+                ss << "global_knowledge";
+            else {
+                if (current_knowledge->Attribute("arg1")) {
+                    if (current_knowledge->Attribute("class1"))
+                        ss << getParameterClass(plan_->getNode(id)->getParameters()[atoi(current_knowledge->Attribute("arg1"))]) << "-";
+                    else
+                        ss << plan_->getNode(id)->getParameters()[atoi(current_knowledge->Attribute("arg1"))] << "-";
+                }
+                if (current_knowledge->Attribute("arg2")) {
+                    if (current_knowledge->Attribute("class2"))
+                        ss << getParameterClass(plan_->getNode(id)->getParameters()[atoi(current_knowledge->Attribute("arg2"))]) << "-";
+                    else
+                        ss << plan_->getNode(id)->getParameters()[atoi(current_knowledge->Attribute("arg2"))] << "-";
+                }
             }
+            return ss.str();
         } else {
-            ss << plan_->getNode(id)->getParameters()[i] << "-";
+            current_knowledge = current_knowledge->NextSiblingElement();
         }
+    }
+
+    // We couldn't find this node. Set default knowledge representation method
+    for (int i = 0; i < plan_->getNode(id)->getParameters().size(); ++i) {
+        if ((plan_->getNode(id)->getParameters()[i]) == "HERAKLES_HUMAN1" || (plan_->getNode(id)->getParameters()[i]) == "PR2_ROBOT" && i < 2)
+            continue;
+        else
+            ss << plan_->getNode(id)->getParameters()[i] << "-";
     }
     return ss.str();
 }
@@ -187,8 +209,14 @@ std::string getSubject(std::vector<std::string> agents) {
         return "You ";
 }
 
+void removePr2(std::vector<std::string>& agents) {
+    std::vector<std::string>::iterator it = std::find(agents.begin(), agents.end(), "PR2_ROBOT");
+    if (it != agents.end()) {
+        agents.erase(it);
+    }
+}
+
 // We decide here:
-// -> to return 1.0 if it concerns only PR2_ROBOT
 // -> to return the lower knowledge value if it concerns several agents
 
 /**
@@ -203,16 +231,16 @@ std::string getKnowledge(unsigned int id) {
 
     std::string curKnowledge = "beginner";
     std::string params = planToKnowledgeParam(id);
+    if (params == "global_knowledge")
+        return "expert";
 
     if (agents.size() == 1) {
         if (agents[0] == "PR2_ROBOT") {
             agents = agents_;
+            removePr2(agents);
         }
     } else {
-        std::vector<std::string>::iterator it = std::find(agents.begin(), agents.end(), "PR2_ROBOT");
-        if (it != agents.end()) {
-            agents.erase(it);
-        }
+        removePr2(agents);
     }
 
     for (std::vector<std::string>::iterator it = agents.begin(); it != agents.end(); ++it) {
@@ -250,6 +278,8 @@ bool updateKnowledge(std::string level, unsigned int nodeId) {
     std::vector<std::string> agents = node->getAgents();
     bool success = true;
     std::string params = planToKnowledgeParam(nodeId);
+    if (params == "global_knowledge")
+        return true;
 
     if (agents.size() == 1) {
         if (agents[0] == "PR2_ROBOT") {
@@ -286,14 +316,11 @@ bool updateKnowledge(std::string level, unsigned int nodeId) {
  * @param agents
  * @param task
  */
-void tellTask(std::vector<std::string> agents, std::string task) {
+void tellTask(std::vector<std::string> agents, unsigned int task) {
     std::stringstream ss;
 
-    ss << getSubject(agents) << "have to " << planNamesToSpeech(task);
-    soundClient_->say(ss.str());
-    sleep(3);
-    lastSentence_ = ss.str();
-    printf("[saying] %s\n", ss.str().c_str());
+    ss << getSubject(agents) << "have to  " << nodeToText(task);
+    verbalize(ss.str(), 5);
 }
 
 /**
@@ -358,8 +385,8 @@ void verbalizeTasksRepartition(std::vector<unsigned int> currentNodes, unsigned 
 
     if (!currentNodes.empty()) {
         std::stringstream ss;
-        ss << "I will tell you the steps to " << nodeToText(daddy);
-        verbalize(ss.str(), 5);
+        ss << "I will tell you the steps";
+        verbalize(ss.str(), 3);
 
         for (std::vector<unsigned int>::iterator it = currentNodes.begin(); it != currentNodes.end(); ++it) {
             ss.str("");
@@ -398,8 +425,8 @@ bool executeTree(std::vector<unsigned int> currentNodes, unsigned int daddy) {
     bool tellcurrent = true;
 
 
-    if (getKnowledge(daddy) != "new" || !policyTeach_)
-        ROS_INFO("knowledge %s   policy %d", getKnowledge(daddy).c_str(), policyTeach_);
+    //if (getKnowledge(daddy) != "new" || !policyTeach_)
+    //   ROS_INFO("knowledge %s   policy %d", getKnowledge(daddy).c_str(), policyTeach_);
 
     // If only robot is concerned + no need explain
     if ((plan_->getNode(daddy)->getAgents().size() < 2 && agents[0] == "PR2_ROBOT")
@@ -419,11 +446,12 @@ bool executeTree(std::vector<unsigned int> currentNodes, unsigned int daddy) {
             } else
                 ss << "Good, now " << getSubject(plan_->getNode((*it))->getAgents()) << nodeToText((*it));
 
-            bool understand = false;
-            while (!understand) {
-                verbalize(ss.str(), 3);
-                understand = askUnderstand();
-            }
+            //bool understand = false;
+
+            //while (!understand) {
+            verbalize(ss.str(), 5);
+            //    understand = askUnderstand();
+            //}
 
         }
 
@@ -453,7 +481,9 @@ bool executeTree(std::vector<unsigned int> currentNodes, unsigned int daddy) {
             if (getKnowledge((*it)) == "new") {
                 //TODO explain((*it));
 
-                //If leaf
+                ROS_INFO("Explain %s", plan_->getNode((*it))->getName().c_str());
+
+                //If not leaf
                 if (!children.empty()) {
                     executeTree(children, (*it));
                 } else {
@@ -472,6 +502,7 @@ bool executeTree(std::vector<unsigned int> currentNodes, unsigned int daddy) {
                     //We downgrade the knowledge
                     updateKnowledge("new", (*it));
                     //TODO explain((*it));
+                    ROS_INFO("Explain %s", plan_->getNode((*it))->getName().c_str());
                     //If leaf
                     if (!children.empty()) {
                         executeTree(children, (*it));
@@ -518,9 +549,8 @@ bool executePlan(unsigned int n) {
         return false;
     else {
         std::vector<std::string> agents = plan_->getNode(n)->getAgents();
-        std::string task = plan_->getNode(n)->getName();
 
-        tellTask(agents, task);
+        tellTask(agents, n);
 
         printf("Task verbalized\n");
 
@@ -530,7 +560,6 @@ bool executePlan(unsigned int n) {
             vector<unsigned int> nodesRemaining = processNodes(plan_->getNode(n)->getSubNodes(), n);
             vector<unsigned int> currentNodes;
 
-            printf("1 nodes Remaining size? %d\n", (int) nodesRemaining.size());
             while (!nodesRemaining.empty()) {
                 // Human can remember 7 info: 1 goal + 3 task + 3 agent responsible for each task
                 // SO we limit the plan presentation to 3 nodes
@@ -544,7 +573,6 @@ bool executePlan(unsigned int n) {
                     cut++;
                     nodesRemaining.assign(cut, end);
 
-                    printf("2 nodes Remaining size? %d\n", nodesRemaining.size());
                 } else {
                     currentNodes = nodesRemaining;
                     nodesRemaining.clear();
@@ -558,7 +586,6 @@ bool executePlan(unsigned int n) {
                 //Execute tree
                 executeTree(currentNodes, n);
 
-                printf("3 nodes Remaining size? %d\n", nodesRemaining.size());
             }
         }
         printf("tree done\n");
@@ -770,7 +797,7 @@ bool executeCurrentPlan(htn_verbalizer2::Empty::Request &req,
     else {
         executePlan(plan_->getTree()->getRootNode()->getID());
     }
-
+    return true;
 }
 
 /**
@@ -787,7 +814,7 @@ bool setHatpClient(htn_verbalizer2::Name::Request &req,
     else {
         clientName_ = req.name;
     }
-
+    return true;
 }
 
 bool changePolicyTeach(htn_verbalizer2::Empty::Request &req,
@@ -799,6 +826,7 @@ bool changePolicyTeach(htn_verbalizer2::Empty::Request &req,
         policyTeach_ = true;
 
     ROS_INFO("[htn_verbalizer][policyteach] policyTeach_ set to %d", policyTeach_);
+    return true;
 }
 
 bool setAgentsPresent(htn_verbalizer2::Names::Request &req,
@@ -809,7 +837,7 @@ bool setAgentsPresent(htn_verbalizer2::Names::Request &req,
     else {
         agents_ = req.names;
     }
-
+    return true;
 }
 
 /**
@@ -901,6 +929,20 @@ int main(int argc, char ** argv) {
 
     TiXmlHandle hdlNames(&listNames_);
     names_ = hdlNames.FirstChildElement().FirstChildElement().Element();
+
+    // knowledges
+    std::stringstream pathKnowledges;
+    pathKnowledges << ros::package::getPath("htn_verbalizer2") << "/data/list_knowledge.xml";
+    listKnowledges_ = TiXmlDocument(pathKnowledges.str());
+
+    if (!listKnowledges_.LoadFile()) {
+        ROS_WARN_ONCE("Error while loading xml file");
+        ROS_WARN_ONCE("error # %d", listKnowledges_.ErrorId());
+        ROS_WARN_ONCE("%s", listKnowledges_.ErrorDesc());
+    }
+
+    TiXmlHandle hdlKnowledges(&listKnowledges_);
+    knowledges_ = hdlKnowledges.FirstChildElement().FirstChildElement().Element();
 
     while (node.ok()) {
         ros::spinOnce();

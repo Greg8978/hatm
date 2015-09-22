@@ -7,10 +7,11 @@
 	<object node="PlaceOnStack"		 	speech1=" place the "  	 		arg1="1"  	speech2=" on the stack" />
 	<object node="Pick"  			        speech1=" pick the "     		arg1="1"  	speech2=""                    />
 	<object node="Apply"  			        speech1=""               		arg1="2"  	speech2=" the "         arg2="1"     />
-	<object node="ApplyOperation"		        speech1=" process the "  		arg1="1"  	speech2=""              arg2=""      />
+	<object node="ApplyOperation"		        speech1=""  		  		arg1="2"  	speech2=" the "         arg2="1"      />
 	<object node="HandleOperation" 		        speech1=""               		arg1="2"  	speech2=" the "         arg2="1"     />
 	<object node="ApplyFirstOperations"	        speech1=" apply operations on the" 	arg1="1"  	/>
 	<object node="Move" 		                speech1=" move the "               	arg1="0"  	speech2=" to the "         arg2="1"  />
+	<object node="Travelto" 		        speech1=" go to the "               	arg1="1"  	/>
 
 
 
