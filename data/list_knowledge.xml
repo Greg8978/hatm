@@ -10,7 +10,16 @@
 	<object node="ApplyFirstOperations"	        arg1="1"  		   	/>
 	<object node="Move" 		                global_knowledge="true"		/>
 	<object node="Travelto" 		        global_knowledge="true"		/>
-
-	
+	<object node="Cook"			arg1="1"			/>
+	<object node="PrepareDough"						/>
+	<object node="PrepareMixture"						/>
+	<object node="PrepareFruits"		arg1="1"	class1="true"	/>
+	<object node="Bake"							/>
+	<object node="GatherIngredient"		global_knowledge="true"		/>
+	<object node="Mix"			global_knowledge="true"		/>
+	<object node="SpreadIn"			global_knowledge="true"		/>
+	<object node="Cut"			global_knowledge="true"		/>
+	<object node="PutInOven"		global_knowledge="true"		/>
+	<object node="SetTimer"			global_knowledge="true"		/>
 </list_knowledge>	
 

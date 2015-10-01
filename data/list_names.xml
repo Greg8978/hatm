@@ -12,5 +12,16 @@
 	<object name="Livingroom_table"         speech=" livingroom table " />
 	<object name="Glue_Red"         	speech=" glue " />
 
-
+        <object name="Robot"		speech=" robot " />
+	<object name="Human"		speech=" Greg " />
+	<object name="ApplePie"		speech=" apple pie " />
+	<object name="BananaPie"	speech=" banana pie" />
+	<object name="Flour"		speech=" flour " />
+	<object name="Water"		speech=" water " />
+	<object name="Butter"		speech=" butter " />
+	<object name="Sugar"		speech=" sugar " />
+	<object name="Apple"		speech=" apple " />
+	<object name="Banana"		speech=" banana " />
+	<object name="Bowl"		speech=" bowl " />
+	<object name="Mould"		speech=" mould " />
 </list_names>

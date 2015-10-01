@@ -39,9 +39,15 @@ TiXmlElement *names_;
 //Agents in plan
 std::vector<std::string> agents_;
 
-// Speakin agent
+// Speaking agent
 // TODO: put it in a service
-std::string speakingAgent_ = " HERAKLES_HUMAN1";
+std::string speakingAgent_ = "HERAKLES_HUMAN1";
+
+
+// Robot in plan and human in plan
+// TODO: put it in a service
+std::string humanPlan_ = "HERAKLES_HUMAN1";
+std::string robotPlan_ = "PR2_ROBOT";
 
 //To ask robot to repeat:
 std::string lastSentence_ = "";
@@ -170,7 +176,7 @@ std::string planToKnowledgeParam(unsigned int id) {
 
     // We couldn't find this node. Set default knowledge representation method
     for (int i = 0; i < plan_->getNode(id)->getParameters().size(); ++i) {
-        if ((plan_->getNode(id)->getParameters()[i]) == "HERAKLES_HUMAN1" || (plan_->getNode(id)->getParameters()[i]) == "PR2_ROBOT" && i < 2)
+        if ((plan_->getNode(id)->getParameters()[i]) == humanPlan_ || (plan_->getNode(id)->getParameters()[i]) == robotPlan_ && i < 2)
             continue;
         else
             ss << plan_->getNode(id)->getParameters()[i] << "-";
@@ -335,18 +341,18 @@ bool askExplanation() {
  */
 std::string getSubject(std::vector<std::string> agents) {
     if (agents.size() < 2)
-        if (agents[0] == "PR2_ROBOT")
+        if (agents[0] == robotPlan_)
             return "I ";
         else
             return "You ";
-    else if (std::find(agents.begin(), agents.end(), "PR2_ROBOT") != agents.end())
+    else if (std::find(agents.begin(), agents.end(), robotPlan_) != agents.end())
         return "We ";
     else
         return "You ";
 }
 
-void removePr2(std::vector<std::string>& agents) {
-    std::vector<std::string>::iterator it = std::find(agents.begin(), agents.end(), "PR2_ROBOT");
+void removeRobot(std::vector<std::string>& agents) {
+    std::vector<std::string>::iterator it = std::find(agents.begin(), agents.end(), robotPlan_);
     if (it != agents.end()) {
         agents.erase(it);
     }
@@ -373,10 +379,10 @@ std::string getKnowledge(unsigned int id) {
     if (agents.size() == 1) {
         if (agents[0] == "PR2_ROBOT") {
             agents = agents_;
-            removePr2(agents);
+            removeRobot(agents);
         }
     } else {
-        removePr2(agents);
+        removeRobot(agents);
     }
 
     for (std::vector<std::string>::iterator it = agents.begin(); it != agents.end(); ++it) {
@@ -785,7 +791,7 @@ bool initSpeech(htn_verbalizer2::Empty::Request &req,
         agents = plan_->getTree()->getRootNode()->getAgents();
 
         for (std::vector<std::string>::iterator it = agents.begin(); it != agents.end(); ++it) {
-            if ((*it) != "PR2_ROBOT")
+            if ((*it) != robotPlan_)
                 ss << "Hello " << planNamesToSpeech((*it)) << "! ";
         }
 
@@ -915,7 +921,7 @@ bool endExecution(htn_verbalizer2::NodeParam::Request &req,
     } else {
 
         std::stringstream ss;
-        if (plan_->getNode(req.node)->getAgents().front() != "PR2_ROBOT")
+        if (plan_->getNode(req.node)->getAgents().front() != robotPlan_)
             ss << " I see that ";
 
         ss << getSubject(plan_->getNode(req.node)->getAgents()) << " finished to " << planNamesToSpeech(plan_->getNode(req.node)->getName());

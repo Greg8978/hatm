@@ -14,6 +14,16 @@
 	<object node="Travelto" 		        speech1=" go to the "               	arg1="1"  	/>
 
 
-	
+	<object node="Cook"			speech1=" cook the "	arg1="1"	/>
+	<object node="PrepareDough"		speech1=" prepare the dough"		/>
+	<object node="PrepareMixture"		speech1=" prepare the mixture"		/>
+	<object node="PrepareFruits"		speech1=" prepare the "	arg1="1"	/>
+	<object node="Bake"			speech1=" bake the pie "			/>
+	<object node="GatherIngredient"		speech1=" fetch the "	arg1="2"	" and put it in "	arg2="3"/>
+	<object node="Mix"			speech1=" mix the dough in "	arg1="2"/>
+	<object node="SpreadIn"			speech1=" spread the dough in "	arg1="2"/>
+	<object node="Cut"			speech1=" cut the "	arg1="2"	"and put it in "	arg2="3"/>
+	<object node="PutInOven"		speech1=" put the pie in the oven "	/>
+	<object node="SetTimer"			speech1=" set the oven timer "		/>
 </list_nodes>	
 
