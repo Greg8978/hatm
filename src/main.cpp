@@ -39,6 +39,10 @@ TiXmlElement *names_;
 //Agents in plan
 std::vector<std::string> agents_;
 
+// Speakin agent
+// TODO: put it in a service
+std::string speakingAgent_ = " HERAKLES_HUMAN1";
+
 //To ask robot to repeat:
 std::string lastSentence_ = "";
 
@@ -67,76 +71,6 @@ std::string getParameterClass(std::string param) {
         return "Glue";
     else
         return param;
-}
-
-bool askUnderstand() {
-    std::string mystr;
-    verbalize("Did you understand?", 2);
-    getline(std::cin, mystr);
-    if (mystr == "yes")
-        return true;
-    else if (mystr == "no")
-        return false;
-    else
-        return askUnderstand();
-    return false;
-}
-
-bool askExplanation() {
-    std::string mystr;
-    verbalize("Do you need explanation for this task", 3);
-    getline(std::cin, mystr);
-    if (mystr == "yes")
-        return true;
-    else if (mystr == "no")
-        return false;
-    else
-        return askExplanation();
-    return false;
-}
-
-/**
- * 
- * @param id
- * @return 
- */
-std::string planToKnowledgeParam(unsigned int id) {
-
-    TiXmlElement *current_knowledge = knowledges_;
-    std::stringstream ss;
-    while (current_knowledge) //for each element of the xml file
-    {
-        if (current_knowledge->Attribute("node") == plan_->getNode(id)->getName()) { //if it is the good one
-            if (current_knowledge->Attribute("global_knowledge"))
-                ss << "global_knowledge";
-            else {
-                if (current_knowledge->Attribute("arg1")) {
-                    if (current_knowledge->Attribute("class1"))
-                        ss << getParameterClass(plan_->getNode(id)->getParameters()[atoi(current_knowledge->Attribute("arg1"))]) << "-";
-                    else
-                        ss << plan_->getNode(id)->getParameters()[atoi(current_knowledge->Attribute("arg1"))] << "-";
-                }
-                if (current_knowledge->Attribute("arg2")) {
-                    if (current_knowledge->Attribute("class2"))
-                        ss << getParameterClass(plan_->getNode(id)->getParameters()[atoi(current_knowledge->Attribute("arg2"))]) << "-";
-                    else
-                        ss << plan_->getNode(id)->getParameters()[atoi(current_knowledge->Attribute("arg2"))] << "-";
-                }
-            }
-            return ss.str();
-        } else {
-            current_knowledge = current_knowledge->NextSiblingElement();
-        }
-    }
-
-    // We couldn't find this node. Set default knowledge representation method
-    for (int i = 0; i < plan_->getNode(id)->getParameters().size(); ++i) {
-        if ((plan_->getNode(id)->getParameters()[i]) == "HERAKLES_HUMAN1" || (plan_->getNode(id)->getParameters()[i]) == "PR2_ROBOT" && i < 2)
-            continue;
-        else
-            ss << plan_->getNode(id)->getParameters()[i] << "-";
-    }
-    return ss.str();
 }
 
 /**
@@ -190,6 +124,208 @@ std::string nodeToText(unsigned int id) {
 
     ss << planNamesToSpeech(plan_->getNode(id)->getName());
     return ss.str();
+}
+
+unsigned int getTaskFromSpeech(std::string speech, std::vector<unsigned int> currentNodes) {
+    for (std::vector<unsigned int>::iterator it = currentNodes.begin(); it != currentNodes.end(); ++it) {
+        if (speech.find(nodeToText((*it))) != std::string::npos)
+            return (*it);
+    }
+    return 0;
+}
+
+/**
+ * 
+ * @param id
+ * @return 
+ */
+std::string planToKnowledgeParam(unsigned int id) {
+
+    TiXmlElement *current_knowledge = knowledges_;
+    std::stringstream ss;
+    while (current_knowledge) //for each element of the xml file
+    {
+        if (current_knowledge->Attribute("node") == plan_->getNode(id)->getName()) { //if it is the good one
+            if (current_knowledge->Attribute("global_knowledge"))
+                ss << "global_knowledge";
+            else {
+                if (current_knowledge->Attribute("arg1")) {
+                    if (current_knowledge->Attribute("class1"))
+                        ss << getParameterClass(plan_->getNode(id)->getParameters()[atoi(current_knowledge->Attribute("arg1"))]) << "-";
+                    else
+                        ss << plan_->getNode(id)->getParameters()[atoi(current_knowledge->Attribute("arg1"))] << "-";
+                }
+                if (current_knowledge->Attribute("arg2")) {
+                    if (current_knowledge->Attribute("class2"))
+                        ss << getParameterClass(plan_->getNode(id)->getParameters()[atoi(current_knowledge->Attribute("arg2"))]) << "-";
+                    else
+                        ss << plan_->getNode(id)->getParameters()[atoi(current_knowledge->Attribute("arg2"))] << "-";
+                }
+            }
+            return ss.str();
+        } else {
+            current_knowledge = current_knowledge->NextSiblingElement();
+        }
+    }
+
+    // We couldn't find this node. Set default knowledge representation method
+    for (int i = 0; i < plan_->getNode(id)->getParameters().size(); ++i) {
+        if ((plan_->getNode(id)->getParameters()[i]) == "HERAKLES_HUMAN1" || (plan_->getNode(id)->getParameters()[i]) == "PR2_ROBOT" && i < 2)
+            continue;
+        else
+            ss << plan_->getNode(id)->getParameters()[i] << "-";
+    }
+    return ss.str();
+}
+
+bool askUnderstand() {
+    std::string mystr;
+    verbalize("Did you understand?", 2);
+    getline(std::cin, mystr);
+    if (mystr == "yes")
+        return true;
+    else if (mystr == "no")
+        return false;
+    else
+        return askUnderstand();
+    return false;
+}
+
+bool inputYesNo() {
+    std::string mystr;
+    getline(std::cin, mystr);
+    if (mystr == "yes")
+        return true;
+    else if (mystr == "no")
+        return false;
+    else {
+        verbalize("I didn't understand, please answer with yes or no?", 5);
+        return inputYesNo();
+    }
+    return false;
+}
+
+bool askRepartitionOk() {
+    verbalize("Are you ok with this plan?", 2);
+    return inputYesNo();
+}
+
+// These are basic functions, should be improved!
+
+bool wantToPerform(std::string mystr) {
+    if (mystr.find("i want to") != std::string::npos)
+        return true;
+    else return false;
+}
+
+bool dontWantToPerform(std::string mystr) {
+    if (mystr.find("i don't want to") != std::string::npos)
+        return true;
+    else return false;
+}
+
+bool cantPerform(std::string mystr) {
+    if (mystr.find("i can't") != std::string::npos)
+        return true;
+    else return false;
+}
+
+bool addWishToDB(unsigned int nodeId, bool add) {
+    hatpNode* node = plan_->getNode(nodeId);
+    bool success = true;
+    std::string params = planToKnowledgeParam(nodeId);
+
+
+
+    toaster_msgs::AddFact setPreference;
+    setPreference.request.fact.property = node->getName();
+    setPreference.request.fact.propertyType = "state";
+    setPreference.request.fact.subProperty = "preference";
+    setPreference.request.fact.subjectId = speakingAgent_;
+    setPreference.request.fact.targetId = params;
+    if (add)
+        setPreference.request.fact.stringValue = "true";
+    else
+        setPreference.request.fact.stringValue = "false";
+
+    if (setKnowledgeClient_->call(setPreference)) {
+        ROS_INFO("[Request] we request to set preference in PR2_ROBOT model: %s %s %s \n", speakingAgent_.c_str(), params.c_str(), setPreference.request.fact.stringValue.c_str());
+    } else {
+        ROS_INFO("[Request] we failed to request to set preference in PR2_ROBOT model: %s %s %s \n", speakingAgent_.c_str(), params.c_str(), setPreference.request.fact.stringValue.c_str());
+        success = false;
+    }
+
+
+    return success;
+}
+
+bool addCantToDB(unsigned int nodeId) {
+    hatpNode* node = plan_->getNode(nodeId);
+    bool success = true;
+    std::string params = planToKnowledgeParam(nodeId);
+
+    toaster_msgs::AddFact setPreference;
+    setPreference.request.fact.property = node->getName();
+    setPreference.request.fact.propertyType = "state";
+    setPreference.request.fact.subProperty = "ability";
+    setPreference.request.fact.subjectId = speakingAgent_;
+    setPreference.request.fact.targetId = params;
+    setPreference.request.fact.stringValue = "false";
+
+    if (setKnowledgeClient_->call(setPreference)) {
+        ROS_INFO("[Request] we request to set unability in PR2_ROBOT model: %s %s %s \n", speakingAgent_.c_str(), params.c_str(), setPreference.request.fact.stringValue.c_str());
+    } else {
+        ROS_INFO("[Request] we failed to request to set unability in PR2_ROBOT model: %s %s %s \n", speakingAgent_.c_str(), params.c_str(), setPreference.request.fact.stringValue.c_str());
+        success = false;
+    }
+
+    return success;
+}
+
+bool userInput(std::vector<unsigned int> currentNodes) {
+    std::string mystr;
+    //TODO: replace this with speech
+    getline(std::cin, mystr);
+
+    if (mystr == "cancel")
+        return false;
+
+    unsigned int node = getTaskFromSpeech(mystr, currentNodes);
+    if (node == 0) {
+        verbalize("I didn't understand, can you repeat please?", 4);
+        userInput(currentNodes);
+        return true;
+    }
+
+    if (wantToPerform(mystr))
+        addWishToDB(node, true);
+    else if (dontWantToPerform(mystr))
+        addWishToDB(node, false);
+    else if (cantPerform(mystr))
+        addCantToDB(node);
+
+    return true;
+}
+
+bool askChangeRepartition(std::vector<unsigned int> currentNodes) {
+    verbalize("What is wrong?", 2);
+
+    if (userInput(currentNodes)) {
+        verbalize("Got it! Something else?", 4);
+
+        if (inputYesNo())
+            askChangeRepartition(currentNodes);
+
+        return true;
+
+    } else
+        return false;
+}
+
+bool askExplanation() {
+    std::string mystr;
+    verbalize("Do you need explanation for this task", 3);
+    return inputYesNo();
 }
 
 /**
@@ -548,6 +684,7 @@ bool executePlan(unsigned int n) {
     if (plan_ == NULL)
         return false;
     else {
+        bool negotiate = false;
         std::vector<std::string> agents = plan_->getNode(n)->getAgents();
 
         tellTask(agents, n);
@@ -568,7 +705,6 @@ bool executePlan(unsigned int n) {
                     vector<unsigned int>::const_iterator cut = nodesRemaining.begin() + 2;
                     vector<unsigned int>::const_iterator end = nodesRemaining.end();
 
-
                     currentNodes.assign(start, cut);
                     cut++;
                     nodesRemaining.assign(cut, end);
@@ -578,10 +714,16 @@ bool executePlan(unsigned int n) {
                     nodesRemaining.clear();
                 }
 
-                repeat_ = true;
-                while (repeat_) {
-                    verbalizeTasksRepartition(currentNodes, n);
-                    repeat_ = !askUnderstand();
+
+                verbalizeTasksRepartition(currentNodes, n);
+                negotiate = !askRepartitionOk();
+                if (negotiate) {
+                    if (askChangeRepartition(currentNodes)) {
+                        verbalize("Ok, I will try to find a new plan", 5);
+                        return false;
+                    }
+                    // User canceled change
+                    verbalize("Ok, I will keep this plan", 5);
                 }
                 //Execute tree
                 executeTree(currentNodes, n);
@@ -668,7 +810,7 @@ bool initSpeech(htn_verbalizer2::Empty::Request &req,
  * @param res
  * @return 
  */
-bool rePlan(htn_verbalizer2::NodeParam::Request &req,
+bool rePlanActionFailure(htn_verbalizer2::NodeParam::Request &req,
         htn_verbalizer2::NodeParam::Response & res) {
 
     ROS_INFO("[htn_verbalizer][rePlan] received a replan request!");
@@ -795,7 +937,7 @@ bool executeCurrentPlan(htn_verbalizer2::Empty::Request &req,
     if (plan_ == NULL)
         ROS_INFO("[htn_verbalizer][verbalizeCurrentPlan][WARNING] no plan, use init_plan request!");
     else {
-        executePlan(plan_->getTree()->getRootNode()->getID());
+        return executePlan(plan_->getTree()->getRootNode()->getID());
     }
     return true;
 }
@@ -876,7 +1018,7 @@ int main(int argc, char ** argv) {
     ros::ServiceServer serviceVerbCurrent = node.advertiseService("htn_verbalizer/verbalize_current_plan", executeCurrentPlan);
     ROS_INFO("[Request] Ready to verbalize current plan.");
 
-    ros::ServiceServer serviceReplan = node.advertiseService("htn_verbalizer/replan", rePlan);
+    ros::ServiceServer serviceReplan = node.advertiseService("htn_verbalizer/replan", rePlanActionFailure);
     ROS_INFO("[Request] Ready to replan.");
 
     ros::ServiceServer serviceInitExe = node.advertiseService("htn_verbalizer/init_execution", initExecution);
