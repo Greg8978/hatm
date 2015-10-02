@@ -392,6 +392,7 @@ std::string getKnowledge(unsigned int id) {
         getKnowledge.request.reqFact.property = node->getName();
         getKnowledge.request.reqFact.subjectId = (*it);
         getKnowledge.request.reqFact.targetId = params;
+        getKnowledge.request.reqFact.propertyType = "knowledge";
 
         ROS_INFO("[Request] we request knowledge in PR2_ROBOT model: %s %s %s \n", (*it).c_str(), node->getName().c_str(), params.c_str());
 
