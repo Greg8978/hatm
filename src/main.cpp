@@ -112,12 +112,14 @@ std::string nodeToText(unsigned int id) {
     while (current_node) //for each element of the xml file
     {
         if (current_node->Attribute("node") == plan_->getNode(id)->getName()) { //if it is the good one
-            ss << current_node->Attribute("speech1");
+            if (current_node->Attribute("speech1"))
+                ss << current_node->Attribute("speech1");
 
             if (current_node->Attribute("arg1"))
                 ss << planNamesToSpeech(plan_->getNode(id)->getParameters()[atoi(current_node->Attribute("arg1"))]);
 
-            ss << current_node->Attribute("speech2");
+            if (current_node->Attribute("speech2"))
+                ss << current_node->Attribute("speech2");
 
             if (current_node->Attribute("arg2")) {
                 ss << planNamesToSpeech(plan_->getNode(id)->getParameters()[atoi(current_node->Attribute("arg2"))]);
@@ -687,14 +689,15 @@ bool executeTree(std::vector<unsigned int> currentNodes, unsigned int daddy) {
  * @param n
  * @return 
  */
-bool executePlan(unsigned int n) {
+bool executePlan(unsigned int n, bool replan = false) {
     if (plan_ == NULL)
         return false;
     else {
         bool negotiate = false;
         std::vector<std::string> agents = plan_->getNode(n)->getAgents();
 
-        tellTask(agents, n);
+        if (!replan)
+            tellTask(agents, n);
 
         printf("Task verbalized\n");
 
@@ -709,7 +712,7 @@ bool executePlan(unsigned int n) {
                 // SO we limit the plan presentation to 3 nodes
                 if (nodesRemaining.size() > 3) {
                     vector<unsigned int>::const_iterator start = nodesRemaining.begin();
-                    vector<unsigned int>::const_iterator cut = nodesRemaining.begin() + 2;
+                    vector<unsigned int>::const_iterator cut = nodesRemaining.begin() + 3;
                     vector<unsigned int>::const_iterator end = nodesRemaining.end();
 
                     currentNodes.assign(start, cut);
@@ -721,13 +724,39 @@ bool executePlan(unsigned int n) {
                     nodesRemaining.clear();
                 }
 
-
+                //TODO presentation should be different if 1st nodes or last nodes
                 verbalizeTasksRepartition(currentNodes, n);
                 negotiate = !askRepartitionOk();
                 if (negotiate) {
                     if (askChangeRepartition(currentNodes)) {
                         verbalize("Ok, I will try to find a new plan", 5);
-                        return false;
+
+                        //TODO:
+                        //sendSupervisor(Replan);
+                        //REPLAN
+                        ROS_INFO("[htn_verbalizer][initPlan] Waiting for a plan");
+
+                        std::string answer;
+
+                        if (hatpClient_.isConnected()) {
+                            std::pair<std::string, std::string> result = hatpClient_.getBlockingMessage();
+                            //std::cout << "#### Answer : \n" << result.second << std::endl;
+                            answer = result.second;
+                        } else {
+                            ROS_INFO("[htn_verbalizer][WARNING] client not connected!");
+                            return false;
+                        }
+
+                        ROS_INFO("[htn_verbalizer][initPlan] plan received");
+
+                        removeFormatting(answer);
+                        if (testInputValidity(answer)) {
+                            plan_ = new hatpPlan(answer);
+                            agents_ = plan_->getTree()->getRootNode()->getAgents();
+                        } else
+                            ROS_INFO("[htn_verbalizer][WARNING] unvalid plan received!");
+                        verbalize("I found a new plan!", 3);
+                        return executePlan(plan_->getTree()->getRootNode()->getID(), true);
                     }
                     // User canceled change
                     verbalize("Ok, I will keep this plan", 5);
@@ -736,6 +765,8 @@ bool executePlan(unsigned int n) {
                 executeTree(currentNodes, n);
 
             }
+            //TODO: say something when we successfully achieve the plan:
+            verbalize("We achieve the plan, Youhou!", 5);
         }
         printf("tree done\n");
         return true;
@@ -1055,7 +1086,7 @@ int main(int argc, char ** argv) {
     listNodes_ = TiXmlDocument(pathNodes.str());
 
     if (!listNodes_.LoadFile()) {
-        ROS_WARN_ONCE("Error while loading xml file");
+        ROS_WARN_ONCE("Error while loading xml file %s", pathNodes.str().c_str());
         ROS_WARN_ONCE("error # %d", listNodes_.ErrorId());
         ROS_WARN_ONCE("%s", listNodes_.ErrorDesc());
     }
@@ -1071,7 +1102,7 @@ int main(int argc, char ** argv) {
     listNames_ = TiXmlDocument(pathNames.str());
 
     if (!listNames_.LoadFile()) {
-        ROS_WARN_ONCE("Error while loading xml file");
+        ROS_WARN_ONCE("Error while loading xml file%s", pathNodes.str().c_str());
         ROS_WARN_ONCE("error # %d", listNames_.ErrorId());
         ROS_WARN_ONCE("%s", listNames_.ErrorDesc());
     }
@@ -1085,7 +1116,7 @@ int main(int argc, char ** argv) {
     listKnowledges_ = TiXmlDocument(pathKnowledges.str());
 
     if (!listKnowledges_.LoadFile()) {
-        ROS_WARN_ONCE("Error while loading xml file");
+        ROS_WARN_ONCE("Error while loading xml file %s", pathNodes.str().c_str());
         ROS_WARN_ONCE("error # %d", listKnowledges_.ErrorId());
         ROS_WARN_ONCE("%s", listKnowledges_.ErrorDesc());
     }

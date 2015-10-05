@@ -15,7 +15,7 @@
         <object name="Robot"		speech=" robot " />
 	<object name="Human"		speech=" Greg " />
 	<object name="ApplePie"		speech=" apple pie " />
-	<object name="BananaPie"	speech=" banana pie" />
+	<object name="BananaPie"	speech=" banana pie " />
 	<object name="Flour"		speech=" flour " />
 	<object name="Water"		speech=" water " />
 	<object name="Butter"		speech=" butter " />
