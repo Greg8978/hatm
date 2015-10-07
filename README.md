@@ -10,4 +10,4 @@ A demo video:
 
 
 
-[![Cooking pie](http://img.youtube.com/vi/v1WgaOqMTDc/0.jpg)](http://www.youtube.com/watch?v=v1WgaOqMTDc)
+[![Cooking pie](doc/media/hatm.gif)](http://www.youtube.com/watch?v=v1WgaOqMTDc)
