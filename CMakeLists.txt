@@ -119,14 +119,14 @@ include_directories(
 # )
 
 ## Declare a cpp executable
-add_executable(htn_verbalizer2 src/main.cpp)
+add_executable(hatm src/main.cpp)
 
 ## Add cmake target dependencies of the executable/library
 ## as an example, message headers may need to be generated before nodes
-add_dependencies(htn_verbalizer2 htn_verbalizer2_generate_messages_cpp)
+add_dependencies(hatm hatm_generate_messages_cpp)
 
 ## Specify libraries to link a library or executable target against
-target_link_libraries(htn_verbalizer2 
+target_link_libraries(hatm 
 ${catkin_LIBRARIES}
 ${msgconnector_LIBRARIES} 
 ${libhatp_LIBRARIES} 
