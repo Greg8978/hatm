@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 2.8.3)
-project(htn_verbalizer2)
+project(hatm)
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} $ENV{ROBOTPKG_BASE}/share/cmake/Modules)
 
