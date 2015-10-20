@@ -8,10 +8,10 @@
 #include <ros/ros.h>
 #include "ros/package.h"
 #include <queue>
-#include "htn_verbalizer2/Empty.h"
-#include "htn_verbalizer2/NodeParam.h"
-#include "htn_verbalizer2/Name.h"
-#include "htn_verbalizer2/Names.h"
+#include "hatm/Empty.h"
+#include "hatm/NodeParam.h"
+#include "hatm/Name.h"
+#include "hatm/Names.h"
 
 #include "toaster_msgs/GetFactValue.h"
 #include "toaster_msgs/AddFact.h"
@@ -734,7 +734,7 @@ bool executePlan(unsigned int n, bool replan = false) {
                         //TODO:
                         //sendSupervisor(Replan);
                         //REPLAN
-                        ROS_INFO("[htn_verbalizer][initPlan] Waiting for a plan");
+                        ROS_INFO("[hatm][initPlan] Waiting for a plan");
 
                         std::string answer;
 
@@ -743,18 +743,18 @@ bool executePlan(unsigned int n, bool replan = false) {
                             //std::cout << "#### Answer : \n" << result.second << std::endl;
                             answer = result.second;
                         } else {
-                            ROS_INFO("[htn_verbalizer][WARNING] client not connected!");
+                            ROS_INFO("[hatm][WARNING] client not connected!");
                             return false;
                         }
 
-                        ROS_INFO("[htn_verbalizer][initPlan] plan received");
+                        ROS_INFO("[hatm][initPlan] plan received");
 
                         removeFormatting(answer);
                         if (testInputValidity(answer)) {
                             plan_ = new hatpPlan(answer);
                             agents_ = plan_->getTree()->getRootNode()->getAgents();
                         } else
-                            ROS_INFO("[htn_verbalizer][WARNING] unvalid plan received!");
+                            ROS_INFO("[hatm][WARNING] unvalid plan received!");
                         verbalize("I found a new plan!", 3);
                         return executePlan(plan_->getTree()->getRootNode()->getID(), true);
                     }
@@ -779,10 +779,10 @@ bool executePlan(unsigned int n, bool replan = false) {
  * @param res
  * @return 
  */
-bool initPlan(htn_verbalizer2::Empty::Request &req,
-        htn_verbalizer2::Empty::Response & res) {
+bool initPlan(hatm::Empty::Request &req,
+        hatm::Empty::Response & res) {
 
-    ROS_INFO("[htn_verbalizer][initPlan] Waiting for a plan");
+    ROS_INFO("[hatm][initPlan] Waiting for a plan");
 
     std::string answer;
 
@@ -791,18 +791,18 @@ bool initPlan(htn_verbalizer2::Empty::Request &req,
         //std::cout << "#### Answer : \n" << result.second << std::endl;
         answer = result.second;
     } else {
-        ROS_INFO("[htn_verbalizer][WARNING] client not connected!");
+        ROS_INFO("[hatm][WARNING] client not connected!");
         return false;
     }
 
-    ROS_INFO("[htn_verbalizer][initPlan] plan received");
+    ROS_INFO("[hatm][initPlan] plan received");
 
     removeFormatting(answer);
     if (testInputValidity(answer)) {
         plan_ = new hatpPlan(answer);
         agents_ = plan_->getTree()->getRootNode()->getAgents();
     } else
-        ROS_INFO("[htn_verbalizer][WARNING] unvalid plan received!");
+        ROS_INFO("[hatm][WARNING] unvalid plan received!");
 
     return true;
 }
@@ -813,8 +813,8 @@ bool initPlan(htn_verbalizer2::Empty::Request &req,
  * @param res
  * @return 
  */
-bool initSpeech(htn_verbalizer2::Empty::Request &req,
-        htn_verbalizer2::Empty::Response & res) {
+bool initSpeech(hatm::Empty::Request &req,
+        hatm::Empty::Response & res) {
 
     if (plan_ != NULL) {
         std::vector<std::string> agents;
@@ -835,7 +835,7 @@ bool initSpeech(htn_verbalizer2::Empty::Request &req,
 
         return true;
     } else {
-        ROS_INFO("[htn_verbalizer][initSpeech][WARNING] no plan, use init_plan request!");
+        ROS_INFO("[hatm][initSpeech][WARNING] no plan, use init_plan request!");
         //soundClient_->say("Hello, I will compute a plan for us to complete the task!");
         //sleep(2);
         return false;
@@ -848,10 +848,10 @@ bool initSpeech(htn_verbalizer2::Empty::Request &req,
  * @param res
  * @return 
  */
-bool rePlanActionFailure(htn_verbalizer2::NodeParam::Request &req,
-        htn_verbalizer2::NodeParam::Response & res) {
+bool rePlanActionFailure(hatm::NodeParam::Request &req,
+        hatm::NodeParam::Response & res) {
 
-    ROS_INFO("[htn_verbalizer][rePlan] received a replan request!");
+    ROS_INFO("[hatm][rePlan] received a replan request!");
     //We start by informing about the error:
     if (plan_ != NULL) {
         std::vector<std::string> agents;
@@ -870,7 +870,7 @@ bool rePlanActionFailure(htn_verbalizer2::NodeParam::Request &req,
         }
 
         verbalize(ss.str(), 5);
-        ROS_INFO("[htn_verbalizer][rePlan] Waiting for a plan");
+        ROS_INFO("[hatm][rePlan] Waiting for a plan");
 
 
         if (hatpClient_.isConnected()) {
@@ -878,11 +878,11 @@ bool rePlanActionFailure(htn_verbalizer2::NodeParam::Request &req,
             //std::cout << "#### Answer : \n" << result.second << std::endl;
             answer = result.second;
         } else {
-            ROS_INFO("[htn_verbalizer][WARNING] client not connected!");
+            ROS_INFO("[hatm][WARNING] client not connected!");
             return false;
         }
 
-        ROS_INFO("[htn_verbalizer][rePlan] plan received");
+        ROS_INFO("[hatm][rePlan] plan received");
 
         removeFormatting(answer);
         if (testInputValidity(answer)) {
@@ -899,11 +899,11 @@ bool rePlanActionFailure(htn_verbalizer2::NodeParam::Request &req,
             executePlan(plan_->getTree()->getRootNode()->getID());
 
         } else
-            ROS_INFO("[htn_verbalizer][WARNING] unvalid plan received!");
+            ROS_INFO("[hatm][WARNING] unvalid plan received!");
 
         return true;
     } else {
-        ROS_INFO("[htn_verbalizer][initSpeech][WARNING] no plan, use init_plan request!");
+        ROS_INFO("[hatm][initSpeech][WARNING] no plan, use init_plan request!");
         //soundClient_->say("Hello, I will compute a plan for us to complete the task!");
         //sleep(2);
         return false;
@@ -916,12 +916,12 @@ bool rePlanActionFailure(htn_verbalizer2::NodeParam::Request &req,
  * @param res
  * @return 
  */
-bool initExecution(htn_verbalizer2::NodeParam::Request &req,
-        htn_verbalizer2::NodeParam::Response & res) {
+bool initExecution(hatm::NodeParam::Request &req,
+        hatm::NodeParam::Response & res) {
 
-    ROS_INFO("[htn_verbalizer][initExec] received a initExec request!");
+    ROS_INFO("[hatm][initExec] received a initExec request!");
     if (plan_ == NULL) {
-        ROS_INFO("[htn_verbalizer][initExec][WARNING] no plan, use init_plan request!");
+        ROS_INFO("[hatm][initExec][WARNING] no plan, use init_plan request!");
         return false;
     } else {
 
@@ -942,13 +942,13 @@ bool initExecution(htn_verbalizer2::NodeParam::Request &req,
  * @param res
  * @return 
  */
-bool endExecution(htn_verbalizer2::NodeParam::Request &req,
-        htn_verbalizer2::NodeParam::Response & res) {
+bool endExecution(hatm::NodeParam::Request &req,
+        hatm::NodeParam::Response & res) {
     std::stringstream ss;
 
-    ROS_INFO("[htn_verbalizer][initExec] received a initExec request!");
+    ROS_INFO("[hatm][initExec] received a initExec request!");
     if (plan_ == NULL) {
-        ROS_INFO("[htn_verbalizer][initExec][WARNING] no plan, use init_plan request!");
+        ROS_INFO("[hatm][initExec][WARNING] no plan, use init_plan request!");
         return false;
     } else {
 
@@ -969,11 +969,11 @@ bool endExecution(htn_verbalizer2::NodeParam::Request &req,
  * @param res
  * @return 
  */
-bool executeCurrentPlan(htn_verbalizer2::Empty::Request &req,
-        htn_verbalizer2::Empty::Response & res) {
+bool executeCurrentPlan(hatm::Empty::Request &req,
+        hatm::Empty::Response & res) {
 
     if (plan_ == NULL)
-        ROS_INFO("[htn_verbalizer][verbalizeCurrentPlan][WARNING] no plan, use init_plan request!");
+        ROS_INFO("[hatm][verbalizeCurrentPlan][WARNING] no plan, use init_plan request!");
     else {
         return executePlan(plan_->getTree()->getRootNode()->getID());
     }
@@ -986,34 +986,34 @@ bool executeCurrentPlan(htn_verbalizer2::Empty::Request &req,
  * @param res
  * @return 
  */
-bool setHatpClient(htn_verbalizer2::Name::Request &req,
-        htn_verbalizer2::Name::Response & res) {
+bool setHatpClient(hatm::Name::Request &req,
+        hatm::Name::Response & res) {
 
     if (req.name == "")
-        ROS_INFO("[htn_verbalizer][setHatpPlan][WARNING] no client name given!");
+        ROS_INFO("[hatm][setHatpPlan][WARNING] no client name given!");
     else {
         clientName_ = req.name;
     }
     return true;
 }
 
-bool changePolicyTeach(htn_verbalizer2::Empty::Request &req,
-        htn_verbalizer2::Empty::Response & res) {
+bool changePolicyTeach(hatm::Empty::Request &req,
+        hatm::Empty::Response & res) {
 
     if (policyTeach_)
         policyTeach_ = false;
     else
         policyTeach_ = true;
 
-    ROS_INFO("[htn_verbalizer][policyteach] policyTeach_ set to %d", policyTeach_);
+    ROS_INFO("[hatm][policyteach] policyTeach_ set to %d", policyTeach_);
     return true;
 }
 
-bool setAgentsPresent(htn_verbalizer2::Names::Request &req,
-        htn_verbalizer2::Names::Response & res) {
+bool setAgentsPresent(hatm::Names::Request &req,
+        hatm::Names::Response & res) {
 
     if (req.names.empty())
-        ROS_INFO("[htn_verbalizer][setHatpPlan][WARNING] no agent names given!");
+        ROS_INFO("[hatm][setHatpPlan][WARNING] no agent names given!");
     else {
         agents_ = req.names;
     }
@@ -1029,7 +1029,7 @@ bool setAgentsPresent(htn_verbalizer2::Names::Request &req,
 int main(int argc, char ** argv) {
 
 
-    ros::init(argc, argv, "htn_verbalizer");
+    ros::init(argc, argv, "hatm");
 
     ros::NodeHandle node;
 
@@ -1047,31 +1047,31 @@ int main(int argc, char ** argv) {
 
 
     //Services
-    ros::ServiceServer serviceInitPlan = node.advertiseService("htn_verbalizer/init_plan", initPlan);
+    ros::ServiceServer serviceInitPlan = node.advertiseService("hatm/init_plan", initPlan);
     ROS_INFO("[Request] Ready to receive a plan.");
 
-    ros::ServiceServer serviceInitSpeech = node.advertiseService("htn_verbalizer/init_speech", initSpeech);
+    ros::ServiceServer serviceInitSpeech = node.advertiseService("hatm/init_speech", initSpeech);
     ROS_INFO("[Request] Ready to init speech.");
 
-    ros::ServiceServer serviceVerbCurrent = node.advertiseService("htn_verbalizer/verbalize_current_plan", executeCurrentPlan);
+    ros::ServiceServer serviceVerbCurrent = node.advertiseService("hatm/verbalize_current_plan", executeCurrentPlan);
     ROS_INFO("[Request] Ready to verbalize current plan.");
 
-    ros::ServiceServer serviceReplan = node.advertiseService("htn_verbalizer/replan", rePlanActionFailure);
+    ros::ServiceServer serviceReplan = node.advertiseService("hatm/replan", rePlanActionFailure);
     ROS_INFO("[Request] Ready to replan.");
 
-    ros::ServiceServer serviceInitExe = node.advertiseService("htn_verbalizer/init_execution", initExecution);
+    ros::ServiceServer serviceInitExe = node.advertiseService("hatm/init_execution", initExecution);
     ROS_INFO("[Request] Ready to init execution.");
 
-    ros::ServiceServer serviceEndExec = node.advertiseService("htn_verbalizer/end_execution", endExecution);
+    ros::ServiceServer serviceEndExec = node.advertiseService("hatm/end_execution", endExecution);
     ROS_INFO("[Request] Ready to end execution.");
 
-    ros::ServiceServer servicesetHatp = node.advertiseService("htn_verbalizer/set_hatp_client", setHatpClient);
+    ros::ServiceServer servicesetHatp = node.advertiseService("hatm/set_hatp_client", setHatpClient);
     ROS_INFO("[Request] Ready to set hatp client.");
 
-    ros::ServiceServer servicePolicy = node.advertiseService("htn_verbalizer/switch_policy", changePolicyTeach);
+    ros::ServiceServer servicePolicy = node.advertiseService("hatm/switch_policy", changePolicyTeach);
     ROS_INFO("[Request] Ready to set policy.");
 
-    ros::ServiceServer serviceAg = node.advertiseService("htn_verbalizer/set_present_agents", setAgentsPresent);
+    ros::ServiceServer serviceAg = node.advertiseService("hatm/set_present_agents", setAgentsPresent);
     ROS_INFO("[Request] Ready to set present agents.");
 
 
@@ -1082,7 +1082,7 @@ int main(int argc, char ** argv) {
 
     // nodes
     std::stringstream pathNodes;
-    pathNodes << ros::package::getPath("htn_verbalizer2") << "/data/list_nodes.xml";
+    pathNodes << ros::package::getPath("hatm") << "/data/list_nodes.xml";
     listNodes_ = TiXmlDocument(pathNodes.str());
 
     if (!listNodes_.LoadFile()) {
@@ -1098,7 +1098,7 @@ int main(int argc, char ** argv) {
 
     // names
     std::stringstream pathNames;
-    pathNames << ros::package::getPath("htn_verbalizer2") << "/data/list_names.xml";
+    pathNames << ros::package::getPath("hatm") << "/data/list_names.xml";
     listNames_ = TiXmlDocument(pathNames.str());
 
     if (!listNames_.LoadFile()) {
@@ -1112,7 +1112,7 @@ int main(int argc, char ** argv) {
 
     // knowledges
     std::stringstream pathKnowledges;
-    pathKnowledges << ros::package::getPath("htn_verbalizer2") << "/data/list_knowledge.xml";
+    pathKnowledges << ros::package::getPath("hatm") << "/data/list_knowledge.xml";
     listKnowledges_ = TiXmlDocument(pathKnowledges.str());
 
     if (!listKnowledges_.LoadFile()) {
